@@ -138,6 +138,7 @@ export default function Home() {
 
 ### Props
 
+- `title`: Title of the chatbot.
 - `modal` (optional): Boolean to toggle modal view.
 - `messages`: Array of message objects containing source and text.
 - `setMessages`: State setter function for messages.
