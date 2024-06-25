@@ -28,28 +28,6 @@ import "react-chatbot-tailwind/dist/style.css";
 
 ## Usage
 
-### Basic Example
-
-Here's a basic example of how to use the `Chatbot` component:
-
-```jsx
-import React from 'react';
-import { Chatbot } from 'react-chatbot-tailwind';
-import "react-chatbot-tailwind/dist/style.css"; //IMPORTANT
-
-const App = () => {
-  return (
-    <div>
-      <h1>Welcome to My Website</h1>
-      <Chatbot modal={true} />
-    </div>
-  );
-};
-
-export default App;
-```
-
-
 ### Usage with Streaming API
 
 ```tsx
