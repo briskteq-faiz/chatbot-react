@@ -1,23 +1,45 @@
-"use client";
-
-import { MessageCircleMoreIcon, Send, X } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
-import { cn } from "../lib/utils";
+import { MessageCircleMoreIcon, Send, StopCircle, X } from "lucide-react";
+import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
+import { cn } from "../../lib/utils";
+import { Button } from "../ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Input } from "../ui/input";
 import MessageBox from "./MessageBox";
-import { Button } from "./ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Input } from "./ui/input";
 
 type MessageType = {
-  source: string;
+  source: "bot" | "user";
   text: string;
 };
 
-export default function Chatbot({ modal }: { modal?: boolean }) {
-  const [messages, setMessages] = useState<MessageType[]>([
-    { text: "Hello, how can I assist you today?", source: "bot" },
-  ]);
-
+export default function Chatbot({
+  modal,
+  messages,
+  setMessages,
+  className,
+  title,
+  botMessageClassName,
+  userMessageClassName,
+  botMessageNotchClassName,
+  userMessageNotchClassName,
+  getResponse,
+  loading,
+  setLoading,
+  handleStopStream,
+}: {
+  modal?: boolean;
+  messages: MessageType[];
+  setMessages: Dispatch<SetStateAction<MessageType[]>>;
+  title: string;
+  loading: boolean;
+  setLoading: Dispatch<SetStateAction<boolean>>;
+  className?: string;
+  botMessageClassName?: string;
+  userMessageClassName?: string;
+  botMessageNotchClassName?: string;
+  userMessageNotchClassName?: string;
+  getResponse: () => void;
+  handleStopStream: () => void;
+}) {
   const [inputValue, setInputValue] = useState<string>("");
   const [modalOpen, setModalOpen] = useState(false);
   const scrollableRef = useRef<HTMLDivElement>(null);
@@ -30,34 +52,8 @@ export default function Chatbot({ modal }: { modal?: boolean }) {
     }
   }, [messages]);
 
-  const getResponse = () => {
-    const eventSource = new EventSource("/api/chat");
-
-    let currentMessage = "";
-    eventSource.onmessage = (event) => {
-      const parseData = event.data.replace("data: ", "");
-      const message = parseData.replace("\n\n", "");
-      currentMessage += message;
-      setMessages((prev) => {
-        const updatedMessages = [...prev];
-        updatedMessages[updatedMessages.length - 1] = {
-          text: currentMessage,
-          source: "bot",
-        };
-        return updatedMessages;
-      });
-    };
-
-    eventSource.onerror = () => {
-      eventSource.close();
-    };
-
-    return () => {
-      eventSource.close();
-    };
-  };
-
   const handleSendMessage = () => {
+    setLoading(true);
     if (inputValue.trim() === "") return;
     setMessages((prev) => [
       ...prev,
@@ -77,7 +73,7 @@ export default function Chatbot({ modal }: { modal?: boolean }) {
   return modal ? (
     <div>
       <div
-        className="fixed bottom-24 rounded-full right-16 p-2 bg-sky-400 cursor-pointer"
+        className="fixed p-2 rounded-full cursor-pointer bottom-24 right-16 bg-sky-400"
         onClick={() => setModalOpen(!modalOpen)}
       >
         <MessageCircleMoreIcon size={30} className="text-slate-100" />
@@ -86,13 +82,14 @@ export default function Chatbot({ modal }: { modal?: boolean }) {
       {modalOpen ? (
         <Card
           className={cn(
-            "absolute border-0 right-32 bottom-24",
-            "flex flex-col grow justify-between max-w-[324px]",
-            "shadow"
+            "fixed border-0 right-32 bottom-24",
+            "flex flex-col grow justify-between w-[324px]",
+            "shadow-lg",
+            className
           )}
         >
-          <CardHeader className="flex flex-row justify-between items-center">
-            <CardTitle>Chatbot</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>{title}</CardTitle>
             <X
               className="cursor-pointer"
               size={20}
@@ -103,32 +100,37 @@ export default function Chatbot({ modal }: { modal?: boolean }) {
           <CardContent
             className={cn(
               "flex flex-col items-center grow w-full",
-              "gap-12 overflow-y-hidden h-[300px] "
+              "gap-12 overflow-y-hidden h-[300px] pb-0 px-2"
             )}
           >
             <div
               className={cn(
                 "grow h-[60vh] flex flex-col gap-3 w-full",
-                "overflow-y-scroll pb-8 pr-2 lg:pr-4",
-                "no-scrollbar"
+                "overflow-y-scroll overflow-x-hidden pb-8",
+                "no-scrollbar text-sm"
               )}
             >
               {messages.map((message: MessageType, index: number) => (
                 <MessageBox
+                  variant="small"
                   key={index}
                   source={message.source}
                   text={message.text}
+                  botMessageClassName={botMessageClassName}
+                  userMessageClassName={userMessageClassName}
+                  botMessageNotchClassName={botMessageNotchClassName}
+                  userMessageNotchClassName={userMessageNotchClassName}
                 />
               ))}
               <div ref={scrollableRef} className="-mt-8" />
             </div>
           </CardContent>
           {/* INPUT DIV */}
-          <CardContent className="p-3 pt-0 lg:px-6 self-end w-full">
-            <div className="flex relative items-center justify-between gap-12 w-full">
+          <CardContent className="self-end w-full p-3 pt-0 lg:px-2">
+            <div className="relative flex items-center justify-between w-full gap-12">
               <Input
                 placeholder="Type your message here"
-                className="rounded-full px-4"
+                className="px-4 rounded-full"
                 value={inputValue}
                 onChange={(event) => setInputValue(event.currentTarget.value)}
                 onKeyDown={(event) => {
@@ -138,7 +140,7 @@ export default function Chatbot({ modal }: { modal?: boolean }) {
                 }}
               />
               <Button
-                className="flex items-center gap-2 absolute right-0 rounded-full"
+                className="absolute right-0 flex items-center gap-2 rounded-full"
                 variant="link"
                 onClick={handleSendMessage}
               >
@@ -150,7 +152,13 @@ export default function Chatbot({ modal }: { modal?: boolean }) {
       ) : null}
     </div>
   ) : (
-    <Card className="w-full grow flex flex-col justify-between max-w-[824px]">
+    <Card
+      className={cn(
+        "grow flex flex-col justify-between",
+        "w-full h-full",
+        className
+      )}
+    >
       <CardHeader className="text-center">
         <CardTitle>Chatbot</CardTitle>
       </CardHeader>
@@ -173,17 +181,22 @@ export default function Chatbot({ modal }: { modal?: boolean }) {
               key={index}
               source={message.source}
               text={message.text}
+              botMessageClassName={botMessageClassName}
+              userMessageClassName={userMessageClassName}
+              botMessageNotchClassName={botMessageNotchClassName}
+              userMessageNotchClassName={userMessageNotchClassName}
             />
           ))}
           <div ref={scrollableRef} className="-mt-8" />
         </div>
       </CardContent>
       {/* INPUT DIV */}
-      <CardContent className="p-3 pt-0 lg:px-6 self-end w-full">
-        <div className="flex relative items-center justify-between gap-12 w-full">
+      <CardContent className="self-end w-full p-3 pt-0 lg:px-6">
+        <div className="relative flex items-center justify-between w-full gap-12">
           <Input
             placeholder="Type your message here"
-            className="rounded-full px-4"
+            className="px-4 rounded-full"
+            disabled={loading}
             value={inputValue}
             onChange={(event) => setInputValue(event.currentTarget.value)}
             onKeyDown={(event) => {
@@ -193,11 +206,13 @@ export default function Chatbot({ modal }: { modal?: boolean }) {
             }}
           />
           <Button
-            className="flex items-center gap-2 absolute right-0 rounded-full"
+            className="absolute right-0 flex items-center gap-2 rounded-full"
             variant="link"
-            onClick={handleSendMessage}
+            onClick={() => {
+              loading ? handleStopStream() : handleSendMessage();
+            }}
           >
-            <Send size={20} />
+            {loading ? <StopCircle size={20} /> : <Send size={20} />}
           </Button>
         </div>
       </CardContent>
